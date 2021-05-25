@@ -1,5 +1,10 @@
 """
+Mapper and demapper implementations, according to IEEE 802.11ad.
+
+Optimal, sub-optimal, and decision threshold demappers are implemented.
+
 """
+
 import os
 
 import numpy as np
@@ -37,7 +42,7 @@ def map_to_constellation_jit(seq, Rm, constellation):
         raise ValueError('Number of symbols is not int.')
     N_s = int(N_s)
 
-    modulated_seq = np.zeros(int(N_s), dtype=np.complex64) # Re-cast to avoid Numba complaints
+    mapped_seq = np.zeros(int(N_s), dtype=np.complex64) # Re-cast to avoid Numba complaints
 
     for i in range(N_s):
         sub_seq_bin = seq[i * Rm:(i + 1) * Rm]
@@ -46,9 +51,9 @@ def map_to_constellation_jit(seq, Rm, constellation):
         for k in range(Rm):
             sub_seq_dec += sub_seq_bin[Rm-1-k] * (2**k) # Dot product substitute (get decimal constellation point index)
         constellation_point = constellation[sub_seq_dec]
-        modulated_seq[i] = constellation_point
+        mapped_seq[i] = constellation_point
 
-    return modulated_seq
+    return mapped_seq
 
 
 @numba.jit(nopython=True)
@@ -77,6 +82,7 @@ def optimal_demap_sequence_from_constellation(r_seq, noise_var, Rm, constellatio
 
 @numba.jit(nopython=True)
 def optimal_demap_symbol_from_constellation(r, noise_var, Rm, constellation):
+    """Demap single symbol using optimal algorithm."""
 
     llr = np.zeros(Rm)
 
@@ -104,7 +110,7 @@ def optimal_demap_symbol_from_constellation(r, noise_var, Rm, constellation):
 
 @numba.jit(nopython=True)
 def suboptimal_demap_sequence_from_constellation(r_seq, noise_var, Rm, constellation):
-    """Demap symbol sequence using suboptimal algorithm."""
+    """Demap symbol sequence using sub-optimal algorithm."""
     bit_llr_values = np.zeros(r_seq.size*Rm)
     for i, r in enumerate(r_seq):
         bit_llr_values[i*Rm:(i+1)*Rm] = suboptimal_demap_symbol_from_constellation(r, noise_var, Rm, constellation)
@@ -112,6 +118,7 @@ def suboptimal_demap_sequence_from_constellation(r_seq, noise_var, Rm, constella
 
 @numba.jit(nopython=True)
 def suboptimal_demap_symbol_from_constellation(r, noise_var, Rm, constellation):
+    """Demap single symbol using sub-optimal algorithm."""
 
     llr = np.zeros(Rm)
 
@@ -182,6 +189,7 @@ def decision_threshold_demap_symbol_from_constellation(r, noise_var, Rm, _):
     elif Rm == 2: return decision_threshold_QPSK_demap_symbol_from_constellation( r, noise_var )
     elif Rm == 4: return decision_threshold_16QAM_demap_symbol_from_constellation( r, noise_var )
     elif Rm == 6: return decision_threshold_64QAM_demap_symbol_from_constellation( r, noise_var )
+
 
 @numba.jit(nopython=True)
 def decision_threshold_BPSK_demap_symbol_from_constellation(r, noise_var):
@@ -268,10 +276,9 @@ class Madem():
 
 
 class Mapper(Madem):
-    """Modulator."""
+    """Mapper definition."""
 
     def __init__(self):
-        """Init Modulator."""
         super().__init__()
         self.norm_factor = None
         self.reset_rotation_k()
@@ -292,20 +299,21 @@ class Mapper(Madem):
     def map_sequence(self, seq):
         """Map sequence."""
         self.reset_rotation_k()
-        modulated_seq = self.map_to_constellation(seq)
-        # modulated_seq = self.rotate_PI_2(modulated_seq)
-        # modulated_seq = self.normalize(modulated_seq)
-        return modulated_seq
+        mapped_seq = self.map_to_constellation(seq)
+        # mapped_seq = self.rotate_PI_2(mapped_seq)
+        # mapped_seq = self.normalize(mapped_seq)
+        return mapped_seq
 
     def map_symbol(self, seq):
         """Map symbol."""
-        modulated_seq = self.map_to_constellation(seq)
-        modulated_seq = self.rotate_PI_2(modulated_seq)
-        modulated_seq = self.normalize(modulated_seq)
-        return modulated_seq
+        mapped_seq = self.map_to_constellation(seq)
+        mapped_seq = self.rotate_PI_2(mapped_seq)
+        mapped_seq = self.normalize(mapped_seq)
+        return mapped_seq
 
 
 class Demapper(Madem):
+    """Demapper definition."""
 
     def __init__(self):
         super().__init__()
@@ -325,7 +333,7 @@ class Demapper(Madem):
         else: raise ValueError (f'Unknown algorithm: {algorithm}')
 
     def de_rotate_PI_2(self, seq):
-        """"De0rotate sequence or symbol."""
+        """"De-rotate sequence or symbol."""
         seq, self.rotation_k = de_rotate_PI_2_jit(seq, self.rotation_k)
         return seq
 
@@ -334,7 +342,6 @@ class Demapper(Madem):
         return de_normalize_jit(seq, self.norm_factor)
 
     def demap_sequence(self, r_seq, noise_var):
-        """"De-normalize, de-rotate and de-demap sequence."""
         """"De-normalize, de-rotate and de-demap sequence."""
         self.reset_rotation_k()
         # r_seq = self.de_normalize(r_seq)

@@ -1,6 +1,10 @@
+"""
+(De)Scrambler implmentation.
+
+"""
+
 import numba
 import numpy as np
-
 
 xor = lambda x, y: int(bool(x) != bool(y))
 

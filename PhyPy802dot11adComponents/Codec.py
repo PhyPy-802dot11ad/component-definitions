@@ -1,3 +1,10 @@
+"""
+LDPC codec implementations, according to IEEE 802.11ad.
+
+Min-sum and sum-product decoding algorithms are implemented.
+
+"""
+
 import os
 
 import numba

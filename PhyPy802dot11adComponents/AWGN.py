@@ -1,11 +1,13 @@
+"""
+Additive white Gaussian noise (AWGN) channel definition.
+
+"""
+
 import numpy as np
 
 
 class AWGN():
     """Additive white Gaussian noise."""
-
-    BOLTZMAN_CONSTANT = 1.38064852 * 10**(-23)
-    CHANNEL_BANDWIDTH_HZ = 2 * 10**9
 
 
     def __init__(self):
@@ -53,4 +55,3 @@ class AWGN():
         noise_variance = ((E_S) / (Eb_N0_lin * Rc * Rm))
 
         return noise_variance
-
